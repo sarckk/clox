@@ -39,11 +39,19 @@ static int getLine(Chunk* chunk, int offset) {
 int disassembleInstruction(Chunk* chunk, int offset) { 
     printf("%04d ", offset);
     
+<<<<<<< Updated upstream
     if(offset > 0 && getLine(chunk, offset) == getLine(chunk, offset-1)) {
         // came from same line
         printf("   | ");
     } else {
         printf("%4d ", getLine(chunk, offset));
+=======
+    int line = getLine(chunk, offset);
+    if (offset > 0 && line == getLine(chunk, offset - 1)) {
+        printf("   | ");
+    } else {
+        printf("%4d ", line);
+>>>>>>> Stashed changes
     }
 
 
