@@ -13,13 +13,15 @@ void disassembleChunk(Chunk* chunk, const char* name) {
 
 static int constantLongInstruction(const char* name, Chunk* chunk, int offset) {
     // we need to re-assemble the 32 bit int keeping in mind we use little endian
-    int constant = 0;
-    int i = 1;
-    int shift = 0;
+    uint32_t constant = chunk->code[offset+1] | (chunk->code[offset+2] << 8) | (chunk->code[offset+3] << 16);
 
-    for(; shift <= 16; i++, shift += 8) {
-        constant += (chunk->code[offset+i] << shift);
-    }
+    /* int constant = 0; */
+    /* int i = 1; */
+    /* int shift = 0; */
+
+    /* for(; shift <= 16; i++, shift += 8) { */
+    /*     constant += (chunk->code[offset+i] << shift); */
+    /* } */
 
     printf("%-16s %4d '", name, constant);
     printValue(chunk->constants.values[constant]);

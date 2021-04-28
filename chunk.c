@@ -39,14 +39,19 @@ int addConstant(Chunk* chunk, Value value) {
 }
 
 void writeConstant(Chunk* chunk, Value value, int line) {
-    int constant = addConstant(chunk, value);
-    // store constant as 4 byte number
-    writeChunk(chunk, OP_CONSTANT_LONG, line);
+    int index = addConstant(chunk, value);
+    if(index < 256) {
+        writeChunk(chunk, OP_CONSTANT, line);
+        writeChunk(chunk, (uint8_t)index, line);
+    } else {
+        // store constant as 4 byte number
+        writeChunk(chunk, OP_CONSTANT_LONG, line);
 
-    // split constant number into 4 bytes and store them 
-    // endianness? store it as little endian -> least significant byte comes first
-    writeChunk(chunk, constant & 0xFF, line);
-    writeChunk(chunk, (constant >> 8) & 0xFF, line);
-    writeChunk(chunk, (constant >> 16) & 0xFF, line);
+        // split constant number into 4 bytes and store them 
+        // endianness? store it as little endian -> least significant byte comes first
+        writeChunk(chunk, (uint8_t)(index & 0xFF), line);
+        writeChunk(chunk, (uint8_t)((index >> 8) & 0xFF), line);
+        writeChunk(chunk, (uint8_t)((index >> 16) & 0xFF), line);
+    }
 }
 
