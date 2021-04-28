@@ -25,25 +25,14 @@ static int simpleInstruction(const char* name, int offset) {
     return offset + 1;
 }
 
-static int getLine(Chunk* chunk, int offset) {
-    for(int i = 0; i < chunk->linesEncCount; i+=2) {
-        // we progress i by 2 to skip over the actual value and get the length 
-        offset -= chunk->lines[i];
-        if(offset < 0) {
-            return chunk->lines[i+1];
-        }
-    }
-    return -1;
-}
-
 int disassembleInstruction(Chunk* chunk, int offset) { 
     printf("%04d ", offset);
     
-    if(offset > 0 && getLine(chunk, offset) == getLine(chunk, offset-1)) {
-        // came from same line
+    if (offset > 0 &&
+        chunk->lines[offset] == chunk->lines[offset - 1]) {
         printf("   | ");
     } else {
-        printf("%4d ", getLine(chunk, offset));
+        printf("%4d ", chunk->lines[offset]);
     }
 
 

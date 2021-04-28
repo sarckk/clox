@@ -16,8 +16,6 @@ typedef struct{
     uint8_t* code;
     ValueArray constants;
     int* lines;
-    int linesEncCount;
-    int linesEncCapacity;
 } Chunk;
 
 void initChunk(Chunk* chunk);
