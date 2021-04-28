@@ -38,3 +38,15 @@ int addConstant(Chunk* chunk, Value value) {
     return chunk->constants.count - 1; // offset where the constant was stored for future access
 }
 
+void writeConstant(Chunk* chunk, Value value, int line) {
+    int constant = addConstant(chunk, value);
+    // store constant as 4 byte number
+    writeChunk(chunk, OP_CONSTANT_LONG, line);
+
+    // split constant number into 4 bytes and store them 
+    // endianness? store it as little endian -> least significant byte comes first
+    writeChunk(chunk, constant & 0xFF, line);
+    writeChunk(chunk, (constant >> 8) & 0xFF, line);
+    writeChunk(chunk, (constant >> 16) & 0xFF, line);
+}
+

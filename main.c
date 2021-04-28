@@ -7,9 +7,10 @@ int main(int argc, const char* argv[]) {
     initChunk(&chunk);
 
     // test loading constants
-    int constant = addConstant(&chunk, 1.2);
-    writeChunk(&chunk, OP_CONSTANT, 123);
-    writeChunk(&chunk, constant, 123);
+    /* int constant = addConstant(&chunk, 1.2); */
+    /* writeChunk(&chunk, OP_CONSTANT, 123); */
+    /* writeChunk(&chunk, constant, 123); */
+    writeConstant(&chunk, 1.2, 123);
 
     writeChunk(&chunk, OP_RETURN, 123);
     disassembleChunk(&chunk, "test chunk");

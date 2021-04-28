@@ -11,6 +11,22 @@ void disassembleChunk(Chunk* chunk, const char* name) {
     }
 }
 
+static int constantLongInstruction(const char* name, Chunk* chunk, int offset) {
+    // we need to re-assemble the 32 bit int keeping in mind we use little endian
+    int constant = 0;
+    int i = 1;
+    int shift = 0;
+
+    for(; shift <= 16; i++, shift += 8) {
+        constant += (chunk->code[offset+i] << shift);
+    }
+
+    printf("%-16s %4d '", name, constant);
+    printValue(chunk->constants.values[constant]);
+    printf("'\n");
+    return offset + 4;
+}
+
 static int constantInstruction(const char* name, Chunk* chunk, int offset) {
     uint8_t constant = chunk->code[offset+1];
 
@@ -38,6 +54,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 
     uint8_t instruction = chunk->code[offset];
     switch(instruction) {
+        case OP_CONSTANT_LONG:
+            return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
         case OP_CONSTANT:
             return constantInstruction("OP_CONSTANT", chunk, offset);
         case OP_RETURN:
