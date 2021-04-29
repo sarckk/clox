@@ -7,10 +7,15 @@
 #define STACK_MAX 256
 
 typedef struct{
+    int capacity; // start with STACK_MAX
+    Value* bot;
+    Value* top;
+} ValueStack; 
+
+typedef struct{
     Chunk* chunk;
     uint8_t* ip;
-    Value stack[STACK_MAX];
-    Value* stackTop;
+    ValueStack stack;
 } VM;
 
 typedef enum{

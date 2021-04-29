@@ -7,7 +7,9 @@
 VM vm;
 
 static void resetStack(){
-    vm.stackTop = vm.stack;
+    vm.stack.capacity = STACK_MAX;
+    vm.stack.bot = GROW_ARRAY(Value, vm.stack.bot, 0, vm.stack.capacity);
+    vm.stack.top = vm.stack.bot; 
 }
 
 void initVM(){
@@ -18,11 +20,19 @@ void freeVM(){
 }
 
 void push(Value value) {
-    *vm.stackTop++ = value;
+    if(vm.stack.capacity < (int)(vm.stack.top-vm.stack.bot) + 1) {
+        // increase capacity
+        int oldCapacity = vm.stack.capacity;
+        vm.stack.capacity = oldCapacity * 2;
+        vm.stack.bot = GROW_ARRAY(Value, vm.stack.bot, oldCapacity, vm.stack.capacity);
+    }
+
+    *vm.stack.top = value;
+    vm.stack.top++;
 }
 
 Value pop() {
-    return *--vm.stackTop;
+    return *--vm.stack.top;
 }
 
 static InterpretResult run() {
@@ -39,7 +49,7 @@ static InterpretResult run() {
 #ifdef DEBUG_TRACE_EXECUTION
         printf("          ");
 
-        for(Value* slot = vm.stack; slot < vm.stackTop ; slot++) {
+        for(Value* slot = vm.stack.bot; slot < vm.stack.top ; slot++) {
                printf("[ ");
               printValue(*slot);
               printf(" ]");
