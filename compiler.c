@@ -19,6 +19,7 @@ typedef struct {
 typedef enum {
     PREC_NONE,
     PREC_ASSIGNMENT,
+    PREC_TERNARY,
     PREC_OR,
     PREC_AND,
     PREC_EQUALITY,
@@ -166,6 +167,20 @@ static void unary(){
     }
 }
 
+static void ternary() {
+    // we already parsed the left (conditional) node
+    
+    // middle node
+    expression();
+
+    consume(TOKEN_COLON, "Expect ':' in ternary expression.");
+
+    // right node, we set it to PREC_TERNARY because it is right-associative
+    parsePrecendence(PREC_TERNARY);
+
+    emitByte(OP_TERNARY);
+}
+
 ParseRule rules[] = {
       [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
       [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
@@ -207,6 +222,8 @@ ParseRule rules[] = {
       [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
       [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
       [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+      [TOKEN_QUESTION]      = {NULL,     ternary,   PREC_TERNARY},
+      [TOKEN_COLON]         = {NULL,     NULL,   PREC_NONE},
 };
 
 static void parsePrecendence(Precedence precedence) {
@@ -221,6 +238,7 @@ static void parsePrecendence(Precedence precedence) {
 
     // infix 
     while(precedence <= getRule(parser.current.type)->precedence) {
+        fprintf(stdout, "debug %.*s \n", parser.current.length, parser.current.start);
         advance();
         ParseFn infixRule = getRule(parser.previous.type)->infix;
         infixRule();

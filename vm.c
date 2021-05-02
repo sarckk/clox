@@ -53,6 +53,13 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_TERNARY: {
+                double b = (pop());
+                double a = (pop());
+                double condition = (pop());
+                push(b);
+                break;
+            }
             case OP_ADD: BINARY_OP(+); break;
             case OP_SUBTRACT: BINARY_OP(-); break;
             case OP_MULTIPLY: BINARY_OP(*); break;

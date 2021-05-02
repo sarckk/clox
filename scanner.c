@@ -193,6 +193,8 @@ Token scanToken() {
 
     switch(c){
         case '"': return string();
+        case '?': return makeToken(TOKEN_QUESTION);
+        case ':': return makeToken(TOKEN_COLON);
         case '(': return makeToken(TOKEN_LEFT_PAREN);
         case ')': return makeToken(TOKEN_RIGHT_PAREN);
         case '{': return makeToken(TOKEN_LEFT_BRACE);
