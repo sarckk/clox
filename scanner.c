@@ -33,6 +33,7 @@ static Token makeToken(TokenType type) {
 }
 
 static Token errorToken(const char* message) {
+
     Token token;
     token.type = TOKEN_ERROR;
     token.start = message;
@@ -187,7 +188,7 @@ Token scanToken() {
     if(isAtEnd()) return makeToken(TOKEN_EOF);
 
     char c = advance();
-
+    
     if(isAlpha(c)) return identifier();
     if(isDigit(c)) return number();
 
@@ -206,6 +207,7 @@ Token scanToken() {
         case '*': return makeToken(TOKEN_STAR);
         case '!': return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
         case '=': return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+        case '>': return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
         case '<': return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
     }
 
