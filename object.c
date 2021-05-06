@@ -6,8 +6,8 @@
 #include "value.h"
 #include "vm.h"
 
-#define ALLOCATE_OBJ(type, length, dataType, objType)\
-    (type*)allocateObject(sizeof(type) + (length + 1) * sizeof(dataType), objType);
+#define ALLOCATE_OBJ(type, objType)\
+    (type*)allocateObject(sizeof(type), objType)
 
 static Obj* allocateObject(size_t size, ObjType type) {
     Obj* obj = (Obj*)reallocate(NULL, 0, size);
@@ -17,24 +17,19 @@ static Obj* allocateObject(size_t size, ObjType type) {
     return obj;
 }
 
-ObjString* allocateString(const char* chars, int length) {
-    ObjString* string = ALLOCATE_OBJ(ObjString, length, char, OBJ_STRING);
+ObjString* makeString(int length) {
+    ObjString* string = (ObjString*)allocateObject(sizeof(ObjString) + length + 1, OBJ_STRING);
     string->length = length;
+    return string;
+}
+
+
+ObjString* copyString(const char* chars, int length) {
+    ObjString* string = makeString(length);
     memcpy(string->chars, chars, length);
     string->chars[length] = '\0';
     return string;
 }
-
-ObjString* takeString(char* chars, int length) {
-    return allocateString(chars, length);
-}
-
-/* ObjString* copyString(const char* chars, int length) { */
-/*     char* heapChars = ALLOCATE(char, length + 1); */
-/*     memcpy(heapChars, chars, length); */ 
-/*     heapChars[length] = '\0'; */
-/*     return allocateString(heapChars, length); */
-/* } */
 
 void printObject(Value value) {
     switch(OBJ_TYPE(value)) {
@@ -45,3 +40,9 @@ void printObject(Value value) {
 }
 
 
+/* ObjString* allocateString(const char* chars, int length) { */
+/*     ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING); */
+/*     string->length = length; */
+/*     string->chars = chars; */
+/*     return string; */
+/* } */

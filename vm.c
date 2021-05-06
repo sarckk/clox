@@ -56,12 +56,12 @@ static void concatenate() {
     ObjString* second = AS_STRING(pop());
     ObjString* first = AS_STRING(pop());
     int length = first->length + second->length;
-    char* concatString = ALLOCATE(char, length + 1);
-    strcpy(concatString, first->chars);
-    strcat(concatString, second->chars);
 
-    ObjString* result = takeString(concatString, length);
-    push(OBJ_VAL(result));
+    ObjString* string = makeString(length);
+    strcpy(string->chars, first->chars);
+    strcat(string->chars+first->length, second->chars);
+
+    push(OBJ_VAL(string));
 }
 
 static InterpretResult run() {
