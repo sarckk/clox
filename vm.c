@@ -53,14 +53,19 @@ static bool isFalsy(Value value) {
 
 static void concatenate() {
     // concatenates two strings at the top of the stack and pushes a new string 
-    ObjString* second = AS_STRING(pop());
-    ObjString* first = AS_STRING(pop());
-    int length = first->length + second->length;
-    char* concatString = ALLOCATE(char, length + 1);
-    strcpy(concatString, first->chars);
-    strcat(concatString, second->chars);
+    ObjString* b = AS_STRING(pop());
+    ObjString* a = AS_STRING(pop());
+    int length = a->length + b->length;
+    char* chars = ALLOCATE(char, length + 1);
+    strncpy(chars, a->chars, a->length);
+    chars[a->length] = '\0';
+    strcat(chars, b->chars);
+    /* char* chars = ALLOCATE(char, length + 1); */
+    /* memcpy(chars, a->chars, a->length); */
+    /* memcpy(chars + a->length, b->chars, b->length); */
+    /* chars[length] = '\0'; */
 
-    ObjString* result = takeString(concatString, length);
+    ObjString* result = makeString(true, chars, length);
     push(OBJ_VAL(result));
 }
 
