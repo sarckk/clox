@@ -28,11 +28,13 @@ static void runtimeError(const char* format, ...) {
 
 void initVM(){
     resetStack();
+    initTable(&vm.strings);
     vm.objects = NULL;
 }
 
 void freeVM(){
     freeObjects();
+    freeTable(&vm.strings);
 }
 
 void push(Value value) {
