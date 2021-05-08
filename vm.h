@@ -14,6 +14,7 @@ typedef struct{
     Value stack[STACK_MAX];
     Value* stackTop;
     Table strings;
+    Table globals;
     Obj* objects; // head of the instrusive list of objects which act as nodes in linked list
 } VM;
 
