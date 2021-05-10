@@ -14,7 +14,8 @@ typedef struct{
     Value stack[STACK_MAX];
     Value* stackTop;
     Table strings;
-    Table globals;
+    Table globalNames; // contains the index of the global variable value in vm.globalValues
+    ValueArray globalValues; // contains the values of the global varibles
     Obj* objects; // head of the instrusive list of objects which act as nodes in linked list
 } VM;
 

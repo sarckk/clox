@@ -39,6 +39,7 @@ typedef struct {
 } ParseRule;
 
 Parser parser;
+Table constantsTable;
 Chunk* compilingChunk;
 
 static Chunk* currentChunk() {
@@ -114,9 +115,21 @@ static void emitReturn() {
 }
 
 static uint8_t makeConstant(Value value) {
+    if(IS_STRING(value)) {
+        // check if it's already been added
+        Value value;
+        if(tableGet(&constantsTable, AS_STRING(value), &value)) {
+            return (uint8_t)AS_NUMBER(value); 
+        }
+    }
+
     int index = addConstant(currentChunk(), value);
     if(index > UINT8_MAX) {
         error("Too many constants in one chunk.");
+    }
+
+    if(IS_STRING(value))  {
+        tableSet(&constantsTable, AS_STRING(value), NUMBER_VAL((double)index));
     }
 
     return (uint8_t)index;  
@@ -144,7 +157,18 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecendence(Precedence precedence);
 
 static uint8_t identifierConstant(Token* name) {
-    return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+    ObjString* key = copyString(name->start, name->length);
+    Value index;
+    if(tableGet(&vm.globalNames, key, &index)) {
+        return (uint8_t)AS_NUMBER(index);
+    }
+
+    uint8_t newIndex = (uint8_t)vm.globalValues.count;
+
+    writeValueArray(&vm.globalValues, UNDEFINED_VAL);
+
+    tableSet(&vm.globalNames, key, NUMBER_VAL((double)newIndex));
+    return newIndex;
 }
 
 static uint8_t parseVariable(const char* errMessage) {
@@ -381,6 +405,7 @@ static void statement() {
 
 bool compile(const char* source, Chunk* chunk) {
     initScanner(source);
+    initTable(&constantsTable);
     compilingChunk = chunk;
 
     parser.hadError = false;
@@ -393,6 +418,8 @@ bool compile(const char* source, Chunk* chunk) {
     }
 
     endCompiler();
+
+    freeTable(&constantsTable);
 
     return !parser.hadError;
 }

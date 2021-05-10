@@ -29,14 +29,16 @@ static void runtimeError(const char* format, ...) {
 void initVM(){
     resetStack();
     initTable(&vm.strings);
-    initTable(&vm.globals);
+    initTable(&vm.globalNames);
+    initValueArray(&vm.globalValues);
     vm.objects = NULL;
 }
 
 void freeVM(){
     freeObjects();
     freeTable(&vm.strings);
-    freeTable(&vm.globals);
+    freeTable(&vm.globalNames);
+    freeValueArray(&vm.globalValues);
 }
 
 void push(Value value) {
@@ -102,30 +104,25 @@ static InterpretResult run() {
 
         switch(instruction = READ_BYTE()) {
             case OP_SET_GLOBAL: {
-                                     ObjString* name = READ_STRING();
-                                     if(tableSet(&vm.globals, name, peek(0))) {
-                                         tableDelete(&vm.globals, name);
-                                         runtimeError("Undefined variable '%s'.", name->chars);
+                                     uint8_t index = READ_BYTE(); 
+                                     if(IS_UNDEFINED(vm.globalValues.values[index])) {
+                                         runtimeError("Undefined variable.");
                                          return INTERPRET_RUNTIME_ERROR;
                                      }
+                                     vm.globalValues.values[index] = peek(0);
                                      break;
                                 }
             case OP_GET_GLOBAL:  {
-                                     ObjString* name = READ_STRING();
-                                     Value value;
-                                     bool got = tableGet(&vm.globals, name, &value);
-                                     if(!got) {
-                                         runtimeError("Undefined variable '%s'.", name->chars);
+                                     Value val = vm.globalValues.values[READ_BYTE()];
+                                     if(IS_UNDEFINED(val)) {
+                                         runtimeError("Undefined variable.");
                                          return INTERPRET_RUNTIME_ERROR;
-                                     }
-
-                                     push(value);
+                                     } 
+                                     push(val);
                                      break;
                                  }
             case OP_DEFINE_GLOBAL: {
-                                       ObjString* name = READ_STRING();
-                                       tableSet(&vm.globals, name, peek(0));
-                                       pop();
+                                       vm.globalValues.values[READ_BYTE()] = pop();
                                        break;
                                    }
             case OP_POP: pop(); break;

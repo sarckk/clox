@@ -40,6 +40,9 @@ void freeValueArray(ValueArray* array) {
 
 void printValue(Value value) {
     switch(value.type) {
+        case VAL_UNDEFINED:
+            printf("undefined");
+            break;
         case VAL_OBJ:
             printObject(value);
             break;
