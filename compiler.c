@@ -12,11 +12,13 @@
 
 typedef struct {
     Token name;
+    bool isFinal;
     int depth;
 } Local;
 
 typedef struct {
     Local locals[UINT8_COUNT];
+    Table finalGlobals;
     int localCount;
     int scopeDepth;
 } Compiler;
@@ -141,6 +143,7 @@ static void emitConstant(Value value) {
 
 static void endCompiler() {
     emitReturn();
+    freeTable(&current->finalGlobals);
 #ifdef DEBUG_PRINT_CODE
 
     if(!parser.hadError) {
@@ -156,11 +159,22 @@ static void statement();
 static ParseRule* getRule(TokenType type);
 static void parsePrecendence(Precedence precedence);
 
-static uint8_t identifierConstant(Token* name) {
-    return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+static uint8_t identifierConstant(Token* name, bool isFinal, bool isAssignment) {
+    ObjString* varNameObjString = copyString(name->start, name->length);
+    Value value;
+
+    if(isAssignment && tableGet(&current->finalGlobals, varNameObjString, &value)) {
+        error("Can't reassign final variables.");
+    } 
+
+    if(!isAssignment && isFinal) {
+        tableSet(&current->finalGlobals, varNameObjString, NIL_VAL);
+    }
+
+    return makeConstant(OBJ_VAL(varNameObjString));
 }
 
-static void addLocal(Token name) {
+static void addLocal(Token name, bool isFinal) {
     if(current->localCount == UINT8_COUNT) {
         error("Too many local variables in function.");
         return;
@@ -168,13 +182,14 @@ static void addLocal(Token name) {
     Local* local = &current->locals[current->localCount++];
     local->name = name;
     local->depth = -1;
+    local->isFinal = isFinal;
 }
 
 static bool identifiersEqual(Token* a, Token* b) {
     return a->length == b->length && memcmp(a->start, b->start, a->length) == 0;
 }
 
-static void declareVariable() {
+static void declareVariable(bool isFinal) {
     if(current->scopeDepth == 0) return;
 
     Token* name = &parser.previous;
@@ -191,16 +206,16 @@ static void declareVariable() {
         }
     }
 
-    addLocal(*name);
+    addLocal(*name, isFinal);
 }
 
-static uint8_t parseVariable(const char* errMessage) {
+static uint8_t parseVariable(const char* errMessage, bool isFinal, bool isAssignment) {
     consume(TOKEN_IDENTIFIER, errMessage);
 
-    declareVariable();
+    declareVariable(isFinal);
     if(current->scopeDepth > 0) return 0;
 
-    return identifierConstant(&parser.previous);
+    return identifierConstant(&parser.previous, isFinal, isAssignment);
 }
 
 static void markInitialized() {
@@ -278,13 +293,18 @@ static void string(bool canAssign) {
     emitConstant(OBJ_VAL(copyString(parser.previous.start+1, parser.previous.length-2)));
 }
 
-static int resolveLocal(Compiler* compiler, Token* name){
+static int resolveLocal(Compiler* compiler, Token* name, bool canAssign){
     for(int i = compiler->localCount - 1; i>=0; i--) {
         Local* local = &compiler->locals[i];
         if(identifiersEqual(name, &local->name)) {
             if(local->depth == -1) {
                 error("Can't read local variable in its own initializer.");
             }
+
+            if(local->isFinal && canAssign && check(TOKEN_EQUAL)) {
+                error("Can't reassign final variables.");
+            }
+
             return i;
         }
     }
@@ -294,12 +314,12 @@ static int resolveLocal(Compiler* compiler, Token* name){
 
 static void namedVariable(Token name, bool canAssign) {
     uint8_t setOp, getOp;
-    int arg = resolveLocal(current, &name);
+    int arg = resolveLocal(current, &name, canAssign);
     if(arg != -1) {
         setOp = OP_SET_LOCAL;
         getOp = OP_GET_LOCAL;
     } else {
-        arg = identifierConstant(&name);
+        arg = identifierConstant(&name, canAssign, canAssign && check(TOKEN_EQUAL));
         setOp = OP_SET_GLOBAL;
         getOp = OP_GET_GLOBAL;
     }
@@ -393,8 +413,8 @@ static void expression(){
     parsePrecendence(PREC_ASSIGNMENT);
 }
 
-static void varDeclaration() { 
-    uint8_t global = parseVariable("Expect variable name.");
+static void varDeclaration(bool isFinal) { 
+    uint8_t global = parseVariable("Expect variable name.", isFinal, false);
 
     if(match(TOKEN_EQUAL)) {
         // there's some kind of initalizer
@@ -467,8 +487,11 @@ static void block() {
 }
 
 static void declaration() {
-    if(match(TOKEN_VAR)) {
-        varDeclaration();
+    if(match(TOKEN_FINAL)) {
+        consume(TOKEN_VAR, "Expect 'var' keyword after final modifier.");
+        varDeclaration(true);
+    } else if(match(TOKEN_VAR)) {
+        varDeclaration(false);
     }  else if (match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();
@@ -492,6 +515,7 @@ static void statement() {
 static void initCompiler(Compiler* compiler) {
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    initTable(&compiler->finalGlobals);
     current = compiler;
 }
 
