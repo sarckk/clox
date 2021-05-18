@@ -10,6 +10,8 @@
 #include "debug.h"
 #endif
 
+#define MAX_CASES 256
+
 typedef struct {
     Token name;
     int depth;
@@ -53,6 +55,9 @@ typedef struct {
 Parser parser;
 Compiler* current = NULL;
 Chunk* compilingChunk;
+
+int innermostLoopStart = -1;
+int innermostLoopScopeDepth = 0;
 
 static Chunk* currentChunk() {
     return compilingChunk;
@@ -491,6 +496,7 @@ static void endScope() {
     current->scopeDepth--;
 
     // get rid of all local variables
+    printf("%d\n", current->localCount);
     while(current->localCount > 0 && current->locals[current->localCount-1].depth > current->scopeDepth) {
         emitByte(OP_POP);
         current->localCount--;
@@ -516,7 +522,10 @@ static void forStatement() {
         expressionStatement();
     }
 
-    int loopStart = currentChunk()->count;
+    int surroundingLoopStart = innermostLoopStart;
+    int surroundingScopeDepth = innermostLoopScopeDepth;
+    innermostLoopStart = currentChunk()->count;
+    innermostLoopScopeDepth = current->scopeDepth;
 
     int exitJump = -1;
     if(!match(TOKEN_SEMICOLON)) {
@@ -535,22 +544,89 @@ static void forStatement() {
         emitByte(OP_POP);
         consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'for' clauses.");
 
-        emitLoop(loopStart);
-        loopStart = incrementStart;
+        emitLoop(innermostLoopStart);
+        innermostLoopStart = incrementStart;
 
         patchJump(bodyJump);
     }
 
-    statement();
+    declaration();
 
-    emitLoop(loopStart);
+    emitLoop(innermostLoopStart);
 
     if(exitJump != -1) {
         patchJump(exitJump);
         emitByte(OP_POP);
     }
 
+    innermostLoopStart = surroundingLoopStart;
+    innermostLoopScopeDepth = surroundingScopeDepth;
+
     endScope();
+}
+
+static void switchStatement() {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' before 'switch'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after switch value.");
+
+    consume(TOKEN_LEFT_BRACE, "Expect switch statements to start with '{'");
+    
+    int notEqualJump = -1;
+    int currentCase = 0;
+    int caseEnds[MAX_CASES];
+
+    while(match(TOKEN_CASE)) {
+        if(notEqualJump != -1) patchJump(notEqualJump);
+        expression();
+        consume(TOKEN_COLON, "Expect ':' after case expression.");
+        notEqualJump = emitJump(OP_JUMP_IF_NOT_EQUAL);
+
+        while(!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) && !check(TOKEN_EOF)) {
+            statement();
+        }
+
+        caseEnds[currentCase++] = emitJump(OP_JUMP);
+    }
+
+    if(match(TOKEN_DEFAULT)) {
+        if(notEqualJump != -1) {
+            patchJump(notEqualJump);
+            notEqualJump = -1;
+        }
+
+        consume(TOKEN_COLON, "Expect ':' after case expression.");
+
+        while(!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+            statement();
+        }
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Expect switch statements to end with '}'");
+
+    if(notEqualJump != -1) patchJump(notEqualJump);
+
+    for(int i = 0; i < currentCase; i++) {
+        patchJump(caseEnds[i]);
+    }
+    emitByte(OP_POP);
+}
+
+static void continueStatement() {
+    if(innermostLoopStart == -1) {
+        error("Expect 'continue' to appear within a loop");
+        return;
+    }
+    consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'");
+
+    // clear local variables
+    for (int i = current->localCount - 1;
+       i >= 0 && current->locals[i].depth > innermostLoopScopeDepth;
+       i--) {
+        emitByte(OP_POP);
+    }
+
+    emitLoop(innermostLoopStart);
 }
 
 static void whileStatement() {
@@ -569,8 +645,8 @@ static void whileStatement() {
 
     patchJump(exitJump);
 
-
     emitByte(OP_POP);
+    loopStart = -1;
 }
 
 static void synchronize() {
@@ -623,6 +699,10 @@ static void declaration() {
 static void statement() {
     if(match(TOKEN_PRINT)) {
         printStatement();
+    } else if(match(TOKEN_CONTINUE)) {
+        continueStatement();
+    } else if(match(TOKEN_SWITCH)) {
+        switchStatement();
     } else if(match(TOKEN_IF)){ 
         ifStatement();
     } else if(match(TOKEN_WHILE)) {

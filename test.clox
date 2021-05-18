@@ -1,10 +1,16 @@
-if(true or false) 
-    print "if branch";
-else
-    print "else branch";
+var a = "none";
 
 
+switch(a){
+    print "before all";
+    case "test": 
+        print "Matched with first branch";
+        print "Matched with 1st branch";
+    case "none":
+        print "Not executed here";
+    default:
+        print "Default printed";
+}
 
 
-for(var i = 0; i < 4; i=i+1)
-    print i;
+print a;

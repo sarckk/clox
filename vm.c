@@ -103,11 +103,16 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_JUMP_IF_NOT_EQUAL: {
+               uint16_t offset = READ_SHORT();
+               if(!valuesEqual(pop(), peek(0))) vm.ip += offset;
+               break;
+            }
             case OP_LOOP: {
-                              uint16_t offset = READ_SHORT();
-                              vm.ip -= offset;
-                              break;
-                          }
+              uint16_t offset = READ_SHORT();
+              vm.ip -= offset;
+              break;
+            }
             case OP_JUMP: {
                               uint16_t offset = READ_SHORT();
                               vm.ip += offset;
@@ -174,18 +179,18 @@ static InterpretResult run() {
             case OP_TRUE: push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
             case OP_ADD:{
-                            if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-                                double b = AS_NUMBER(pop()); 
-                                double a = AS_NUMBER(pop()); 
-                                push(NUMBER_VAL(a + b)); 
-                            } else if(IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-                                concatenate();
-                            } else {
-                                runtimeError("Operands must be two numbers or two strings.");
-                                return INTERPRET_RUNTIME_ERROR;
-                            }
-                            break;
-                        }
+                    if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+                        double b = AS_NUMBER(pop()); 
+                        double a = AS_NUMBER(pop()); 
+                        push(NUMBER_VAL(a + b)); 
+                    } else if(IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+                        concatenate();
+                    } else {
+                        runtimeError("Operands must be two numbers or two strings.");
+                        return INTERPRET_RUNTIME_ERROR;
+                    }
+                    break;
+            }
             case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
             case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
             case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
