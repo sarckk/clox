@@ -51,6 +51,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 
     uint8_t instruction = chunk->code[offset];
     switch(instruction) {
+        case OP_CALL:
+            return byteInstruction("OP_CALL", chunk, offset);
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", -1, chunk, offset);
         case OP_JUMP:

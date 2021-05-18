@@ -1,5 +1,7 @@
 #include <stdlib.h>
 
+#include "memory.h"
+#include "vm.h"
 #include "chunk.h" 
 
 void initChunk(Chunk* chunk) {
