@@ -13,7 +13,13 @@
 typedef struct {
     Token name;
     int depth;
+    bool isCaptured;
 } Local;
+
+typedef struct {
+    uint8_t index;
+    bool isLocal;
+} Upvalue;
 
 typedef enum {
     TYPE_FUNCTION,
@@ -26,6 +32,7 @@ typedef struct Compiler {
     FunctionType type;
 
     Local locals[UINT8_COUNT];
+    Upvalue upvalues[UINT8_COUNT];
     int localCount;
     int scopeDepth;
 } Compiler;
@@ -214,6 +221,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
+    local->isCaptured = false;
     local->name.start = "";
     local->name.length = 0;
 }
@@ -229,6 +237,7 @@ static void addLocal(Token name) {
     }
     Local* local = &current->locals[current->localCount++];
     local->name = name;
+    local->isCaptured = false;
     local->depth = -1;
 }
 
@@ -399,12 +408,52 @@ static int resolveLocal(Compiler* compiler, Token* name){
     return -1;
 }
 
+static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
+    int upvalueCount = compiler->function->upvalueCount;
+
+    for(int i = 0; i < upvalueCount; i++) {
+        Upvalue* upvalue = &compiler->upvalues[i];
+        if(upvalue->index == index && upvalue->isLocal == isLocal) {
+            return i;
+        }
+    }
+    
+    if(upvalueCount == UINT8_MAX) {
+        error("Too many closures in a single function.");
+        return 0;
+    }
+
+    compiler->upvalues[upvalueCount].isLocal = isLocal;
+    compiler->upvalues[upvalueCount].index = index;
+    return compiler->function->upvalueCount++;
+}
+
+static int resolveUpvalue(Compiler* compiler, Token* name) {
+    if(compiler->enclosing == NULL) return -1; 
+
+    int arg = resolveLocal(compiler->enclosing, name);
+    if(arg != -1) {
+        compiler->enclosing->locals[arg].isCaptured = true;
+        return addUpvalue(compiler, (uint8_t)arg, true);
+    }
+
+    arg = resolveUpvalue(compiler->enclosing, name);
+    if(arg != -1){
+        return addUpvalue(compiler, (uint8_t)arg, false);
+    }
+
+    return -1;
+}
+
 static void namedVariable(Token name, bool canAssign) {
     uint8_t setOp, getOp;
     int arg = resolveLocal(current, &name);
     if(arg != -1) {
         setOp = OP_SET_LOCAL;
         getOp = OP_GET_LOCAL;
+    } else if((arg = resolveUpvalue(current, &name)) != -1) { 
+        setOp = OP_SET_UPVALUE;
+        getOp = OP_GET_UPVALUE;
     } else {
         arg = identifierConstant(&name);
         setOp = OP_SET_GLOBAL;
@@ -549,7 +598,11 @@ static void endScope() {
 
     // get rid of all local variables
     while(current->localCount > 0 && current->locals[current->localCount-1].depth > current->scopeDepth) {
-        emitByte(OP_POP);
+        if(current->locals[current->localCount-1].isCaptured) {
+            emitByte(OP_CLOSE_UPVALUE);
+        } else {
+            emitByte(OP_POP);
+        }
         current->localCount--;
     }
 }
@@ -704,7 +757,13 @@ static void function(FunctionType type) {
     block();
 
     ObjFunction* function = endCompiler();
-    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+
+    // for each of the upvalues, emit 
+    for(int i = 0;  i < function->upvalueCount; i++) {
+        emitByte(compiler.upvalues[i].isLocal ?  1 : 0);
+        emitByte(compiler.upvalues[i].index);
+    }
 }
 
 static void funDeclaration() {
@@ -719,10 +778,6 @@ static void declaration() {
         funDeclaration();
     } else if(match(TOKEN_VAR)) {
         varDeclaration();
-    } else if (match(TOKEN_LEFT_BRACE)) {
-        beginScope();
-        block();
-        endScope();
     } else {
         statement();
     }
@@ -741,6 +796,10 @@ static void statement() {
         whileStatement();
     } else if(match(TOKEN_FOR)) {
         forStatement();
+    } else if(match(TOKEN_LEFT_BRACE)) {
+        beginScope();
+        block();
+        endScope();
     } else {
         expressionStatement();
     }
