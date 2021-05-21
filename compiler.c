@@ -655,28 +655,22 @@ static void forStatement() {
         emitByte(OP_POP);
     }
 
-    int closureJump = -1;
-    int incrementStart = -1;
     if(!match(TOKEN_RIGHT_PAREN)) {
         int bodyJump = emitJump(OP_JUMP);
 
-        incrementStart = currentChunk()->count;
+        int incrementStart = currentChunk()->count;
         expression();
         emitByte(OP_POP);
 
         consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'for' clauses.");
 
-        closureJump = emitJump(OP_JUMP);
+        emitLoop(loopStart);
+        loopStart = incrementStart;
 
         patchJump(bodyJump);
     }
 
     statement();
-
-    if(closureJump != -1)  {
-        emitLoop(incrementStart);
-        patchJump(closureJump);
-    }
 
     endScope(true);
     beginScope();

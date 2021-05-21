@@ -210,7 +210,7 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
-            case OP_DUP: {
+            case OP_CLOSE_UPVALUE_NO_POP: {
                              closeUpvalues(vm.stackTop - 1);
                              break;
                          }
