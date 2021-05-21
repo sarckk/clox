@@ -1,0 +1,23 @@
+fun vector2d(x,y) {
+    fun obj_(method){
+        fun add(other) {
+            return vector2d(x + other("x"), y + other("y"));
+        }
+
+        if(method == "add") return add;  
+        if(method == "x") { return x; }
+        if(method == "y") { return y; }
+        print "unknown message";
+    }
+    return obj_;
+}
+
+var a = vector2d(1,2);
+print a("x");
+print a("y");
+
+var b = vector2d(3,4);
+
+var c = a("add")(b);
+print c("x");
+print c("y");
