@@ -52,6 +52,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 
     uint8_t instruction = chunk->code[offset];
     switch(instruction) {
+        case OP_DUP:
+            return simpleInstruction("OP_DUP", offset);
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_CLOSURE:

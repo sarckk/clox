@@ -210,6 +210,10 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_DUP: {
+                             closeUpvalues(vm.stackTop - 1);
+                             break;
+                         }
             case OP_CLOSE_UPVALUE: {
                                        // the local value we want is currently at the top of the stack
                                        closeUpvalues(vm.stackTop - 1);

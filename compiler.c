@@ -593,13 +593,17 @@ static void beginScope() {
     current->scopeDepth++;
 }
 
-static void endScope() {
+static void endScope(bool keepClosed) {
     current->scopeDepth--;
 
     // get rid of all local variables
     while(current->localCount > 0 && current->locals[current->localCount-1].depth > current->scopeDepth) {
         if(current->locals[current->localCount-1].isCaptured) {
-            emitByte(OP_CLOSE_UPVALUE);
+            if(keepClosed) {
+                emitByte(OP_DUP);
+            } else {
+                emitByte(OP_CLOSE_UPVALUE);
+            }
         } else {
             emitByte(OP_POP);
         }
@@ -651,21 +655,31 @@ static void forStatement() {
         emitByte(OP_POP);
     }
 
+    int closureJump = -1;
+    int incrementStart = -1;
     if(!match(TOKEN_RIGHT_PAREN)) {
         int bodyJump = emitJump(OP_JUMP);
 
-        int incrementStart = currentChunk()->count;
+        incrementStart = currentChunk()->count;
         expression();
         emitByte(OP_POP);
+
         consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'for' clauses.");
 
-        emitLoop(loopStart);
-        loopStart = incrementStart;
+        closureJump = emitJump(OP_JUMP);
 
         patchJump(bodyJump);
     }
 
     statement();
+
+    if(closureJump != -1)  {
+        emitLoop(incrementStart);
+        patchJump(closureJump);
+    }
+
+    endScope(true);
+    beginScope();
 
     emitLoop(loopStart);
 
@@ -674,7 +688,7 @@ static void forStatement() {
         emitByte(OP_POP);
     }
 
-    endScope();
+    current->scopeDepth--;
 }
 
 static void whileStatement() {
@@ -799,7 +813,7 @@ static void statement() {
     } else if(match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();
-        endScope();
+        endScope(false);
     } else {
         expressionStatement();
     }
