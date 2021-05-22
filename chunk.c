@@ -22,7 +22,6 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
         chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
     }
 
-
     chunk->code[chunk->count] = byte;
     chunk->lines[chunk->count] = line;
     chunk->count++;
@@ -36,7 +35,9 @@ void freeChunk(Chunk* chunk) {
 }
 
 int addConstant(Chunk* chunk, Value value) {
+    push(value);
     writeValueArray(&chunk->constants, value);
+    pop();
     return chunk->constants.count - 1; // offset where the constant was stored for future access
 }
 

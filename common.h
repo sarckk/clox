@@ -9,6 +9,9 @@
 /* #define DEBUG_PRINT_CODE */
 /* #define DEBUG_TRACE_EXECUTION */
 
+#define DEBUG_GC_LOG
+/* #define DEBUG_STRESS_GC */
+
 #endif
 
 

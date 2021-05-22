@@ -3,7 +3,9 @@
 
 #include "object.h"
 #include "vm.h"
+#include "memory.h"
 
 ObjFunction* compile(const char* source);
+void markCompilerRoots();
 
 #endif
