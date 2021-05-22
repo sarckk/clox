@@ -59,6 +59,13 @@ void initVM(){
     initTable(&vm.globals);
     vm.objects = NULL;
 
+    vm.grayStack = NULL;
+    vm.grayCount = 0;
+    vm.grayCapacity = 0;
+
+    vm.bytesAllocated = 0;
+    vm.nextGCAt = 1024 * 1024;
+
     defineNative("clock", clockNative);
 }
 
@@ -124,10 +131,12 @@ static bool isFalsy(Value value) {
 
 static void concatenate() {
     // concatenates two strings at the top of the stack and pushes a new string 
-    ObjString* second = AS_STRING(pop());
-    ObjString* first = AS_STRING(pop());
+    ObjString* second = AS_STRING(peek(0));
+    ObjString* first = AS_STRING(peek(1));
     int length = first->length + second->length;
     char* concatString = ALLOCATE(char, length + 1);
+    pop();
+    pop();
     strcpy(concatString, first->chars);
     strcat(concatString, second->chars);
 

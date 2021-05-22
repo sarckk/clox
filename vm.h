@@ -15,6 +15,15 @@ typedef struct {
 } CallFrame;
 
 typedef struct{
+    // adapative GC scheduling
+    size_t bytesAllocated;
+    size_t nextGCAt;
+    
+    // dyanmic array for GC tricolor abstraction
+    Obj** grayStack;
+    int grayCapacity;
+    int grayCount;
+
     ObjUpvalue* openUpvalues;
     CallFrame frames[FRAMES_MAX];
     int frameCount;
