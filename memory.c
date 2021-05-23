@@ -81,14 +81,14 @@ void freeObjects() {
 
 void markObject(Obj* object) {
     if(object == NULL) return;
-    if(object->isMarked) return;
+    if(object->mark == vm.markValue) return;
 #ifdef DEBUG_GC_LOG
     printf("%p mark ", (void*)object);
     printValue(OBJ_VAL(object));
     printf("\n");
 #endif
     // single entrypoint for marking
-    object->isMarked = true;
+    object->mark = vm.markValue;
 
     if(vm.grayCapacity < vm.grayCount + 1) {
         vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
@@ -185,8 +185,7 @@ static void sweep() {
     Obj* prev = NULL;
     Obj* current = vm.objects;
     while(current != NULL) {
-        if(current->isMarked) {
-            current->isMarked = false;
+        if(current->mark == vm.markValue) {
             prev = current;
             current = current->next;
         } else {
@@ -218,6 +217,8 @@ void collectGarbage() {
 
     // schedule next GC 
     vm.nextGCAt = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
+
+    vm.markValue = !vm.markValue;
 
 #ifdef DEBUG_GC_LOG
     printf("-- gc stopped \n");

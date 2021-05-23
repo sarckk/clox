@@ -59,6 +59,8 @@ void initVM(){
     initTable(&vm.globals);
     vm.objects = NULL;
 
+    vm.markValue = true;
+
     vm.grayStack = NULL;
     vm.grayCount = 0;
     vm.grayCapacity = 0;

@@ -12,9 +12,12 @@
 
 static Obj* allocateObject(size_t size, ObjType type) {
     Obj* obj = (Obj*)reallocate(NULL, 0, size);
+    // object->header = (unsigned long)vm.objects | (unsigned long)type << 56;
     obj->type = type;
     obj->next = vm.objects;
-    obj->isMarked = false;
+    obj->mark = !vm.markValue;
+    printf("sizeof Object: %zu \n", sizeof(*obj));
+
     vm.objects = obj;
 
 #ifdef DEBUG_GC_LOG

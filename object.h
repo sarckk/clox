@@ -27,11 +27,36 @@ typedef enum {
     OBJ_UPVALUE,
 } ObjType;
 
+typedef struct sObj{
+    uint64_t header;
+} sObj;
+
 struct Obj {
     ObjType type;
-    bool isMarked;
+    bool mark;
     struct Obj* next;
 };
+
+static inline void setNext(struct sObj* object, struct sObj* next) {
+    object->header = (object->header & ~0x0000ffffffffffff) | (uint64_t)next;
+}
+
+static inline void setIsMarked(struct sObj* object,  bool isMarked) {
+    unsigned long newBit = !!isMarked;
+    object->header = (object->header & ~(1UL << 48)) | (newBit << 48);
+}
+
+static inline sObj* next(struct sObj* object) {
+    return (sObj*)(object->header & 0x0000ffffffffffff);
+}
+
+static inline bool isMarked(struct sObj* object) {
+    return (bool)((object->header >> 48) & 0x01);
+}
+
+static inline ObjType objType(struct sObj* object) {
+    return (ObjType)((object->header >> 56) & 0x7);
+}
 
 typedef struct {
     Obj obj;

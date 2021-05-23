@@ -15,6 +15,8 @@ typedef struct {
 } CallFrame;
 
 typedef struct{
+    bool markValue;
+
     // adapative GC scheduling
     size_t bytesAllocated;
     size_t nextGCAt;
