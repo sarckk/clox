@@ -18,3 +18,7 @@ var propertyName = "me";
 propertyName = propertyName + "nu";
 
 print b{propertyName};
+
+del b.nothing;
+
+print b.nothing; 

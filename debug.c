@@ -52,6 +52,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 
     uint8_t instruction = chunk->code[offset];
     switch(instruction) {
+        case OP_DEL_PROPERTY:
+            return constantInstruction("OP_DEL_PROPERTY", chunk, offset);
         case OP_SET_PROPERTY_VAR: 
             return simpleInstruction("OP_SET_PROPERTY_VAR", offset);
         case OP_GET_PROPERTY_VAR: 

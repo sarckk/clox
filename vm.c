@@ -250,6 +250,20 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_DEL_PROPERTY: {
+                                      if(!IS_INSTANCE(peek(0))) {
+                                          runtimeError("Only instances have properties.");
+                                          return INTERPRET_RUNTIME_ERROR;
+                                      }
+
+                                      ObjInstance* instance = AS_INSTANCE(peek(0));
+                                      ObjString* name = READ_STRING();
+
+                                      tableDelete(&instance->fields, name);
+                                      pop();
+
+                                      break;
+                                  }
             case OP_GET_PROPERTY_VAR: {
                                           if(!IS_INSTANCE(peek(1))) {
                                               runtimeError("Only instances have properties.");
@@ -265,11 +279,11 @@ static InterpretResult run() {
                                           }
 
                                           Value value;
+                                          pop();
+                                          pop();
                                           if(tableGet(&instance->fields, AS_STRING(property), &value)) {
-                                              pop();
                                               push(value);
                                           } else {
-                                              pop();
                                               push(NIL_VAL);
                                           }
                                           break;

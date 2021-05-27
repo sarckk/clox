@@ -811,6 +811,16 @@ static void classDeclaration() {
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 }
 
+static void deleteAttribute() {
+    consume(TOKEN_IDENTIFIER, "Expect instance name.");
+    variable(false);
+    consume(TOKEN_DOT, "Expect '.' to access property name.");
+    consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+    uint8_t index = identifierConstant(&parser.previous);
+    consume(TOKEN_SEMICOLON, "Expect ';' after attribute deletion.");
+    emitBytes(OP_DEL_PROPERTY, index);
+}
+
 static void declaration() {
     if(match(TOKEN_CLASS)) {
         classDeclaration();
@@ -818,6 +828,8 @@ static void declaration() {
         funDeclaration();
     } else if(match(TOKEN_VAR)) {
         varDeclaration();
+    } else if(match(TOKEN_DEL)) {
+        deleteAttribute();
     } else {
         statement();
     }
