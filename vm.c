@@ -250,6 +250,52 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_GET_PROPERTY_VAR: {
+                                          if(!IS_INSTANCE(peek(1))) {
+                                              runtimeError("Only instances have properties.");
+                                              return INTERPRET_RUNTIME_ERROR;
+                                          }
+
+                                          ObjInstance* instance = AS_INSTANCE(peek(1));
+                                          Value property = peek(0);
+
+                                          if(!IS_STRING(property)) {
+                                             runtimeError("Instance properties can only be accessed by a string value.");
+                                             return INTERPRET_RUNTIME_ERROR;
+                                          }
+
+                                          Value value;
+                                          if(tableGet(&instance->fields, AS_STRING(property), &value)) {
+                                              pop();
+                                              push(value);
+                                          } else {
+                                              pop();
+                                              push(NIL_VAL);
+                                          }
+                                          break;
+                                      }
+            case OP_SET_PROPERTY_VAR:  {
+                                           if(!IS_INSTANCE(peek(2))) {
+                                              runtimeError("Only instances have properties.");
+                                              return INTERPRET_RUNTIME_ERROR;
+                                           }
+
+                                           ObjInstance* instance = AS_INSTANCE(peek(2));
+                                           Value property = peek(1);
+
+                                           if(!IS_STRING(property)) {
+                                              runtimeError("Instance properties can only be accessed by a string value.");
+                                              return INTERPRET_RUNTIME_ERROR;
+                                           }
+
+                                           tableSet(&instance->fields, AS_STRING(property), peek(0));
+                                           Value newValue = pop();
+                                           pop();
+                                           pop();
+                                           push(newValue);
+
+                                           break;
+                                       }
             case OP_SET_PROPERTY: {
                                       if(!IS_INSTANCE(peek(1))) {
                                           runtimeError("Only instances have properties.");

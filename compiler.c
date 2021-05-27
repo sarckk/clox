@@ -487,10 +487,21 @@ static void dot(bool canAssign) {
     }
 }
 
+static void prop(bool canAssign) {
+    parsePrecedence(PREC_CALL);
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after expression for property name.");
+
+    if(canAssign && match(TOKEN_EQUAL)) {
+        emitByte(OP_SET_PROPERTY_VAR);
+    } else {
+        emitByte(OP_GET_PROPERTY_VAR);
+    }
+}
+
 ParseRule rules[] = {
       [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
       [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
-      [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE},
+      [TOKEN_LEFT_BRACE]    = {NULL,     prop,   PREC_CALL},
       [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
       [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
       [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
