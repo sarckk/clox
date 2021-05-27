@@ -30,7 +30,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
 
         if(entry->key == NULL) {
             if(IS_NIL(entry->value)) {
-                return tombstone ? tombstone : entry; 
+                return tombstone!=NULL ? tombstone : entry; 
             } else {
                 if(tombstone == NULL) tombstone = entry;
             }
@@ -54,7 +54,8 @@ static void adjustCapacity(Table* table, int capacity) {
     }
 
     // reassign and keep count 
-    int count = 0;
+    table->count = 0;
+
     for(int i = 0; i < table->capacity; i++) {
         Entry* entry = &table->entries[i];
         if(entry->key == NULL) continue; // skip empty values
@@ -62,13 +63,11 @@ static void adjustCapacity(Table* table, int capacity) {
         Entry* dest = findEntry(entries, capacity, entry->key);
         dest->key = entry->key;
         dest->value = entry->value;
-
-        count++;
+        table->count++;
     }
 
 
     FREE_ARRAY(Entry, table->entries, table->capacity);
-    table->count = count;
     table->entries = entries;
     table->capacity = capacity;
 }
@@ -147,10 +146,18 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 }
 
 void tableRemoveWhite(Table* table) {
-    for(int i = 0; i < table->count; i++) {
+    for(int i = 0; i < table->capacity; i++) {
         Entry* entry = &table->entries[i];
         if(entry->key != NULL && !entry->key->obj.isMarked) {
             tableDelete(table, entry->key);
         }
+    }
+}
+
+void markTable(Table* table) {
+    for(int i = 0; i < table->capacity; i++) {
+        Entry* entry = &table->entries[i];
+        markObject((Obj*)entry->key);
+        markValue(entry->value);
     }
 }

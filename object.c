@@ -5,6 +5,7 @@
 #include "object.h"
 #include "value.h"
 #include "table.h"
+#include "common.h"
 #include "vm.h"
 
 #define ALLOCATE_OBJ(type, objType)\
@@ -13,15 +14,26 @@
 static Obj* allocateObject(size_t size, ObjType type) {
     Obj* obj = (Obj*)reallocate(NULL, 0, size);
     obj->type = type;
-    obj->next = vm.objects;
     obj->isMarked = false;
-    vm.objects = obj;
 
-#ifdef DEBUG_GC_LOG
-    printf("%p allocate %zu for %d\n", (void*)obj, size, type);
-#endif
+    obj->next = vm.objects;
+    vm.objects = obj;
+    vm.objectCount++;
 
     return obj;
+}
+
+ObjInstance* newInstance(ObjClass* klass) {
+    ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+    instance->klass = klass;
+    initTable(&instance->fields);
+    return instance;
+}
+
+ObjClass* newClass(ObjString* name) {
+    ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+    klass->name = name;
+    return klass;
 }
 
 ObjFunction* newFunction() {
@@ -77,7 +89,7 @@ static uint32_t hashString(const char* key, int length) {
     uint32_t hash = 2166136261u;
 
     for(int i = 0; i < length; i++) {
-        hash ^= key[i]; // need to cast it to uint_8
+        hash ^= (uint8_t)key[i]; // need to cast it to uint_8
         hash *= 16777619;
     }
 
@@ -117,6 +129,12 @@ static void printFunction(ObjFunction* function) {
 
 void printObject(Value value) {
     switch(OBJ_TYPE(value)) {
+        case OBJ_INSTANCE: 
+            printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
+            break;
+        case OBJ_CLASS:
+            printf("%s", AS_CLASS(value)->name->chars);
+            break;
         case OBJ_UPVALUE:
             // users cannot actually directly print this
             printf("upvalue");

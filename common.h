@@ -6,11 +6,11 @@
 #include <stdint.h>
 
 #define UINT8_COUNT (UINT8_MAX+1)
-/* #define DEBUG_PRINT_CODE */
-/* #define DEBUG_TRACE_EXECUTION */
+#define DEBUG_PRINT_CODE
+#define DEBUG_TRACE_EXECUTION
 
 #define DEBUG_GC_LOG
-/* #define DEBUG_STRESS_GC */
+#define DEBUG_STRESS_GC
 
 #endif
 

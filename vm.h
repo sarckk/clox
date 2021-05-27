@@ -31,7 +31,8 @@ typedef struct{
     Value* stackTop;
     Table strings;
     Table globals;
-    Obj* objects; // head of the instrusive list of objects which act as nodes in linked list
+    int objectCount;
+    Obj* objects; // head of the instrusive list of objects which act as nodes in lined list
 } VM;
 
 typedef enum{

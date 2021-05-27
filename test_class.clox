@@ -1,0 +1,12 @@
+class Brunch {}
+
+var b = Brunch();
+b.cost = 20;
+b.menu = "Bacon and Eggs";
+
+print b.cost;
+print b.menu;
+
+b.menu = "Something else?";
+
+print b.menu;

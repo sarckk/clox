@@ -12,6 +12,25 @@
 
 VM vm;
 
+/* // test */
+/* void getVMObjectsSize(){ */
+/* #ifdef DEBUG_GC_LOG */
+/*     int count = 0; */
+/*     Obj* current = vm.objects; */
+/*     while(current !=NULL) { */
+/*         printObject(OBJ_VAL(current)); */
+/*         printf("{ \n"); */
+/*         printf("\tCURRENT POINTER: %p \n", current); */
+/*         printf("\tNEXT POINTER: %p \n", current->next); */
+/*         printf("} \n"); */
+/*         count++; */
+/*         current = current->next; */
+/*     } */
+
+/*     printf("========= VM.OBJECTS CURRENTLY HAS %d objects ==========\n", count); */
+/* #endif */
+/* } */
+
 static Value clockNative(int argCount, Value* args) {
     return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
@@ -55,8 +74,7 @@ static void defineNative(const char* name, NativeFn function) {
 
 void initVM(){
     resetStack();
-    initTable(&vm.strings);
-    initTable(&vm.globals);
+    vm.objectCount = 0;
     vm.objects = NULL;
 
     vm.grayStack = NULL;
@@ -66,21 +84,28 @@ void initVM(){
     vm.bytesAllocated = 0;
     vm.nextGCAt = 1024 * 1024;
 
+    initTable(&vm.strings);
+    initTable(&vm.globals);
+
     defineNative("clock", clockNative);
 }
 
 void freeVM(){
-    freeObjects();
-    freeTable(&vm.strings);
     freeTable(&vm.globals);
+    freeTable(&vm.strings);
+    freeObjects();
 }
 
 void push(Value value) {
-    *vm.stackTop++ = value;
+    // *vm.stackTop++ = value;
+    *vm.stackTop = value;
+    vm.stackTop++;
 }
 
 Value pop() {
-    return *--vm.stackTop;
+    //return *--vm.stackTop;
+    vm.stackTop--;
+    return *vm.stackTop;
 }
 
 static Value peek(int distance) {
@@ -108,6 +133,12 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
+            case OBJ_CLASS: {
+                ObjClass* klass = AS_CLASS(callee);
+                vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+                // technically above line is same as: vm.stack[vm.stackTop-argCount-1-vm.stack] = ...
+                return true;
+            }
             case OBJ_NATIVE: {
                 NativeFn native = AS_NATIVE(callee);
                 Value result = native(argCount, vm.stackTop - argCount);
@@ -135,12 +166,12 @@ static void concatenate() {
     ObjString* first = AS_STRING(peek(1));
     int length = first->length + second->length;
     char* concatString = ALLOCATE(char, length + 1);
-    pop();
-    pop();
     strcpy(concatString, first->chars);
     strcat(concatString, second->chars);
 
     ObjString* result = takeString(concatString, length);
+    pop();
+    pop();
     push(OBJ_VAL(result));
 }
 
@@ -219,6 +250,43 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_SET_PROPERTY: {
+                                      if(!IS_INSTANCE(peek(1))) {
+                                          runtimeError("Only instances have properties.");
+                                          return INTERPRET_RUNTIME_ERROR;
+                                      }
+
+                                      ObjInstance* instance = AS_INSTANCE(peek(1));
+                                      tableSet(&instance->fields, READ_STRING(), peek(0));
+                                      Value newValue = pop();
+                                      pop();
+                                      push(newValue);
+                                      break;
+                                  }
+            case OP_GET_PROPERTY: {
+                                      if(!IS_INSTANCE(peek(0))) {
+                                          runtimeError("Only instances have properties.");
+                                          return INTERPRET_RUNTIME_ERROR;
+                                      }
+
+                                      ObjInstance* instance = AS_INSTANCE(peek(0));
+                                      ObjString* name = READ_STRING();
+                                      Value value;
+                                      if(tableGet(&instance->fields, name, &value)) {
+                                          pop();
+                                          push(value);
+                                          break;
+                                      }
+
+                                      runtimeError("Cannot find property %s for %s instance.", name->chars, instance->klass->name->chars);
+                                      return INTERPRET_RUNTIME_ERROR;
+                                  }
+            case OP_CLASS: {
+        ObjClass* klass = newClass(READ_STRING());
+        Value val = OBJ_VAL(klass);
+        push(val);
+                                break;
+                            }
             case OP_CLOSE_UPVALUE: {
                                        // the local value we want is currently at the top of the stack
                                        closeUpvalues(vm.stackTop - 1);
@@ -280,8 +348,7 @@ static InterpretResult run() {
             case OP_GET_GLOBAL:  {
                                      ObjString* name = READ_STRING();
                                      Value value;
-                                     bool got = tableGet(&vm.globals, name, &value);
-                                     if(!got) {
+                                     if(!tableGet(&vm.globals, name, &value)) {
                                          runtimeError("Undefined variable '%s'.", name->chars);
                                          return INTERPRET_RUNTIME_ERROR;
                                      }

@@ -1,8 +1,10 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "memory.h"
 #include "vm.h"
 #include "compiler.h"
+#include "table.h"
 
 #ifdef DEBUG_GC_LOG
 #include <stdio.h>
@@ -34,11 +36,22 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 }
 
 static void freeObject(Obj* object) {
+
 #ifdef DEBUG_GC_LOG
     printf("%p free type %d\n", (void*)object, object->type);
 #endif
 
     switch(object->type) {
+        case OBJ_INSTANCE: {
+                               ObjInstance* instance = (ObjInstance*)object;
+                               freeTable(&instance->fields);
+                               FREE(ObjInstance, object);
+                               break;
+                           }
+        case OBJ_CLASS: {
+                            FREE(ObjClass, object);
+                            break;
+                        }
         case OBJ_UPVALUE: {
                               FREE(ObjUpvalue, object);
                               break;
@@ -56,7 +69,7 @@ static void freeObject(Obj* object) {
         case OBJ_FUNCTION: {
                                ObjFunction* function = (ObjFunction*)object;
                                freeChunk(&function->chunk);
-                               FREE(ObjFunction, function);
+                               FREE(ObjFunction, object);
                                break;
         }
         case OBJ_STRING: {
@@ -82,11 +95,13 @@ void freeObjects() {
 void markObject(Obj* object) {
     if(object == NULL) return;
     if(object->isMarked) return;
+
 #ifdef DEBUG_GC_LOG
     printf("%p mark ", (void*)object);
     printValue(OBJ_VAL(object));
     printf("\n");
 #endif
+
     // single entrypoint for marking
     object->isMarked = true;
 
@@ -103,23 +118,13 @@ void markValue(Value value) {
     if(IS_OBJ(value)) markObject(AS_OBJ(value));
 }
 
-static void markTable(Table* table) {
-    for(int i = 0; i < table->count; i++) {
-        Entry* entry = &table->entries[i];
-        markObject((Obj*)entry->key);
-        markValue(entry->value);
-    }
-}
-
 static void markRoots() {
+
     // 1. Mark vm stack values
     for(Value* slot = vm.stack; slot < vm.stackTop; slot++) {
         markValue(*slot);
     }
 
-    // 2. Mark vm.globals table 
-    markTable(&vm.globals);
-    
     // 3. Mark vm frame closures
     for(int i = 0; i < vm.frameCount; i++) {
         markObject((Obj*)vm.frames[i].closure);
@@ -130,8 +135,13 @@ static void markRoots() {
         markObject((Obj*) upvalue);
     }
 
+
+    // 2. Mark vm.globals table 
+    markTable(&vm.globals);
+
     // 5. Mark compiler function 
     markCompilerRoots();
+
 } 
 
 static void markValueArray(ValueArray* varray) {
@@ -142,12 +152,23 @@ static void markValueArray(ValueArray* varray) {
 
 static void blackenObject(Obj* object) {
 #ifdef DEBUG_GC_LOG
-    printf("%p blacken", (void*)object);
+    printf("%p blacken ", (void*)object);
     printValue(OBJ_VAL(object));
     printf("\n");
 #endif
 
     switch(object->type) {
+        case OBJ_INSTANCE:  {
+            ObjInstance* instance = (ObjInstance*)object;
+            markObject((Obj*)instance->klass);
+            markTable(&instance->fields);
+            break;
+        }
+        case OBJ_CLASS:  {
+            ObjClass* klass = (ObjClass*)object;
+            markObject((Obj*)klass->name);
+            break;
+        }
         case OBJ_UPVALUE: {
             markValue(((ObjUpvalue*)object)->closed);
             break;
@@ -190,16 +211,16 @@ static void sweep() {
             prev = current;
             current = current->next;
         } else {
-            Obj* next = current->next;
-            freeObject(current);
+            Obj* unreached = current;
+            current = current->next;
 
             if(prev != NULL) {
-                prev->next = next;
+                prev->next = current;
             } else {
-                vm.objects = next;
+                vm.objects = current;
             }
 
-            current = next;
+            freeObject(unreached);
         }
     }
 }
@@ -212,8 +233,12 @@ void collectGarbage() {
 
     // mark and sweep
     markRoots();
-    tableRemoveWhite(&vm.strings);
+
+
     traceReferences();
+
+    tableRemoveWhite(&vm.strings);
+
     sweep();
 
     // schedule next GC 
@@ -222,7 +247,7 @@ void collectGarbage() {
 #ifdef DEBUG_GC_LOG
     printf("-- gc stopped \n");
     size_t memoryFreed = beforeGC - vm.bytesAllocated;
-    printf(" freed %zu bytes(from %zu to %zu) | next GC at %zu\n", memoryFreed, beforeGC, vm.bytesAllocated, vm.nextGCAt);
+    printf(" collected %zu bytes(from %zu to %zu) | next GC at %zu\n", memoryFreed, beforeGC, vm.bytesAllocated, vm.nextGCAt);
 #endif
 }
 
