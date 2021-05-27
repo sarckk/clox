@@ -275,11 +275,11 @@ static InterpretResult run() {
                                       if(tableGet(&instance->fields, name, &value)) {
                                           pop();
                                           push(value);
-                                          break;
+                                      } else {
+                                          pop();
+                                          push(NIL_VAL);
                                       }
-
-                                      runtimeError("Cannot find property %s for %s instance.", name->chars, instance->klass->name->chars);
-                                      return INTERPRET_RUNTIME_ERROR;
+                                      break;
                                   }
             case OP_CLASS: {
         ObjClass* klass = newClass(READ_STRING());
