@@ -1,0 +1,13 @@
+class Oops {
+  init() {
+    this.diner ="NL";
+    fun f() {
+      print this.diner;
+    }
+
+    this.field = f;
+  }
+}
+
+var oops = Oops();
+oops.field();

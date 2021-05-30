@@ -15,6 +15,8 @@ typedef struct {
 } CallFrame;
 
 typedef struct{
+    ObjString* initString;
+
     // adapative GC scheduling
     size_t bytesAllocated;
     size_t nextGCAt;

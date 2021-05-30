@@ -1,0 +1,18 @@
+class Brunch {
+    init() {
+        this.diner = "Dan";
+    }
+    bacon() {
+        print this.diner + " ate a piece of bacon!";
+    }
+    eggs() {
+        print this.diner + " ate an egg!";
+    }
+}
+
+var b = Brunch();
+
+var bound = b.bacon;
+bound();
+
+b.eggs();
