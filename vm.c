@@ -86,6 +86,9 @@ void initVM(){
 
     initTable(&vm.strings);
     initTable(&vm.globals);
+    vm.initString = NULL;
+    vm.initString = copyString("init", 4);
+
 
     defineNative("clock", clockNative);
 }
@@ -93,6 +96,7 @@ void initVM(){
 void freeVM(){
     freeTable(&vm.globals);
     freeTable(&vm.strings);
+    vm.initString = NULL;
     freeObjects();
 }
 
@@ -133,10 +137,25 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
+            case OBJ_BOUND_METHOD: {
+                ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+                vm.stackTop[-argCount-1] = bound->receiver;
+                return call(bound->method, argCount);
+            }
             case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(callee);
                 vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
                 // technically above line is same as: vm.stack[vm.stackTop-argCount-1-vm.stack] = ...
+
+                // init function runs
+                Value value;
+                if(tableGet(&klass->methods, vm.initString, &value)) {
+                    return call(AS_CLOSURE(value), argCount);
+                } else if(argCount != 0) {
+                    runtimeError("Expected 0 arguments but got %d", argCount);
+                    return false;
+                }
+
                 return true;
             }
             case OBJ_NATIVE: {
@@ -213,6 +232,56 @@ static ObjUpvalue* captureUpvalue(Value* local) {
     return upvalue;
 }
 
+static void defineMethod(ObjString* name) {
+    ObjClass* klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, name, peek(0));
+    pop();
+}
+
+static bool bindMethod(ObjClass* klass, ObjString* name) {
+      Value method;
+
+     if(!tableGet(&klass->methods, name, &method)) {
+        runtimeError("Undefined property '%s'.", name->chars);
+        return false;
+     }
+
+     ObjClosure* methodClosure = AS_CLOSURE(method);
+     ObjBoundMethod* bound = newBoundMethod(peek(0), methodClosure);
+
+     pop();
+     push(OBJ_VAL(bound));
+     return true;
+}
+
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+    Value method;
+    if(!tableGet(&klass->methods, name, &method)) {
+        runtimeError("Undefined property '%s'.", name->chars);
+        return false;
+    }
+
+    return call(AS_CLOSURE(method), argCount);
+}
+
+static bool invoke(ObjString* name, int argCount) {
+    Value receiver = peek(argCount);
+
+    if(!IS_INSTANCE(receiver)) {
+        runtimeError("Only instances have methods.");
+        return false;
+    }
+
+    ObjInstance* instance = AS_INSTANCE(receiver);
+    
+    Value value;
+    if(tableGet(&instance->fields, name, &value)) {
+        vm.stackTop[-argCount-1] = value;
+        return callValue(value, argCount);
+    }
+
+    return invokeFromClass(instance->klass, name, argCount);
+}
 
 static InterpretResult run() {
     CallFrame* frame = &vm.frames[vm.frameCount-1];
@@ -250,6 +319,19 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_INVOKE: {
+                              ObjString* method = READ_STRING();
+                              int argCount = READ_BYTE();
+                              if(!invoke(method, argCount)) {
+                                  return INTERPRET_RUNTIME_ERROR;
+                              }
+                              frame = &vm.frames[vm.frameCount - 1];
+                              break;
+                            }
+            case OP_METHOD: {
+                                defineMethod(READ_STRING());
+                                break;
+                            }
             case OP_SET_PROPERTY: {
                                       if(!IS_INSTANCE(peek(1))) {
                                           runtimeError("Only instances have properties.");
@@ -278,13 +360,16 @@ static InterpretResult run() {
                                           break;
                                       }
 
-                                      runtimeError("Cannot find property %s for %s instance.", name->chars, instance->klass->name->chars);
-                                      return INTERPRET_RUNTIME_ERROR;
+                                      if(!bindMethod(instance->klass, name)) {
+                                          return INTERPRET_RUNTIME_ERROR;
+                                      }
+
+                                      break;
                                   }
             case OP_CLASS: {
-        ObjClass* klass = newClass(READ_STRING());
-        Value val = OBJ_VAL(klass);
-        push(val);
+                                ObjClass* klass = newClass(READ_STRING());
+                                Value val = OBJ_VAL(klass);
+                                push(val);
                                 break;
                             }
             case OP_CLOSE_UPVALUE: {
