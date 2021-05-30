@@ -42,10 +42,10 @@ struct Obj {
     struct Obj* next;
 };
 
-
 typedef struct {
     Obj obj;
     ObjString* name;
+    Value initializer;
     Table methods;
 } ObjClass;
  

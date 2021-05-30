@@ -148,9 +148,8 @@ static bool callValue(Value callee, int argCount) {
                 // technically above line is same as: vm.stack[vm.stackTop-argCount-1-vm.stack] = ...
 
                 // init function runs
-                Value value;
-                if(tableGet(&klass->methods, vm.initString, &value)) {
-                    return call(AS_CLOSURE(value), argCount);
+                if(!IS_NIL(klass->initializer)) {
+                    return call(AS_CLOSURE(klass->initializer), argCount);
                 } else if(argCount != 0) {
                     runtimeError("Expected 0 arguments but got %d", argCount);
                     return false;
@@ -233,8 +232,10 @@ static ObjUpvalue* captureUpvalue(Value* local) {
 }
 
 static void defineMethod(ObjString* name) {
+    Value method = peek(0);
     ObjClass* klass = AS_CLASS(peek(1));
-    tableSet(&klass->methods, name, peek(0));
+    tableSet(&klass->methods, name, method);
+    if(name == vm.initString) klass->initializer = method;
     pop();
 }
 
