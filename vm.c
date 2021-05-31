@@ -319,9 +319,45 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_SUPER_INVOKE: {
+                                      ObjClass* super = AS_CLASS(pop());
+                                      ObjString* method = READ_STRING();
+                                      int argCount = READ_BYTE();
+                                      if(!invokeFromClass(super, method, argCount)) {
+                                          return INTERPRET_RUNTIME_ERROR;
+                                      }
+                                      frame = &vm.frames[vm.frameCount - 1];
+                                      break;
+                                  }
+            case OP_GET_SUPER: {
+                                   ObjString* method = READ_STRING();
+                                   ObjClass* super = AS_CLASS(pop());
+
+                                   if(!bindMethod(super, method)) {
+                                       return INTERPRET_RUNTIME_ERROR;
+                                   }
+                                   break;
+                               }
+            case OP_INHERIT: {
+                                 Value super = peek(1);
+
+                                 if(!IS_CLASS(super)) {
+                                     runtimeError("Can only inherit from classes.");
+                                     return INTERPRET_RUNTIME_ERROR;
+                                 }
+
+                                 ObjClass* klass = AS_CLASS(peek(0));
+                                    
+                                 tableAddAll(&AS_CLASS(super)->methods, &klass->methods);
+
+                                 pop();
+
+                                 break;
+                             }
             case OP_INVOKE: {
                               ObjString* method = READ_STRING();
                               int argCount = READ_BYTE();
+
                               if(!invoke(method, argCount)) {
                                   return INTERPRET_RUNTIME_ERROR;
                               }

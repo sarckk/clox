@@ -1,0 +1,27 @@
+class A {
+    init() {
+        this.name = "A";
+    }
+
+    say() {
+        print "This is A";
+    }
+
+    hello() {
+        print "Hello " + this.name ;
+    }
+}
+
+class B < A{
+    init() {
+        this.name = "B";
+    }
+
+    say() {
+        print "This is B";
+    }
+}
+
+var b = B();
+b.say();
+b.hello();

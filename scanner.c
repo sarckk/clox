@@ -88,6 +88,7 @@ static void skipWhiteSpace() {
                  } else {
                      return;
                  }
+                 break;
              default: 
                  return;
         }
