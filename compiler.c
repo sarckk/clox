@@ -43,6 +43,7 @@ typedef struct Compiler {
 typedef struct ClassCompiler {
     struct ClassCompiler* enclosing;
     bool hasSuper;
+    uint16_t id;
 } ClassCompiler;
 
 typedef struct {
@@ -550,6 +551,28 @@ static void this_(bool canAssign) {
     variable(false);
 }
 
+static void inner(bool canAssign) {
+    if(currentClass == NULL) {
+        error("Can't use 'inner' outside of a class.");
+    } else if (current->type != TYPE_METHOD) {
+        error("Can't use 'inner' outside of methods.");
+    }
+
+    namedVariable(syntheticToken("this"), false);
+
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'inner'.");
+    int argCount = argumentList();
+
+    ObjString* methodName = current->function->name;
+    char name[256];
+    sprintf(name, "%s@%x", methodName->chars, currentClass->id);
+    printf("from %s to %s \n", methodName->chars, name);
+    uint8_t constant = makeConstant(OBJ_VAL(copyString(name, (int)strlen(name))));
+
+    emitBytes(OP_INNER, constant);
+    emitByte(argCount);
+}
+
 ParseRule rules[] = {
       [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
       [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
@@ -584,6 +607,7 @@ ParseRule rules[] = {
       [TOKEN_OR]            = {NULL,     or_,   PREC_OR},
       [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
       [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
+      [TOKEN_INNER]         = {inner,     NULL,   PREC_NONE},
       [TOKEN_SUPER]         = {super_,     NULL,   PREC_NONE},
       [TOKEN_THIS]          = {this_,     NULL,   PREC_NONE},
       [TOKEN_TRUE]          = {literal,     NULL,   PREC_NONE},
@@ -878,14 +902,18 @@ static void classDeclaration() {
     declareVariable();
 
     emitBytes(OP_CLASS, nameConstant);
+    uint16_t id = vm.nextClassID++;
+    emitByte((id >> 8) & 0xff);
+    emitByte(id & 0xff);
+
     defineVariable(nameConstant);
 
     ClassCompiler classCompiler;
     classCompiler.hasSuper = false;
     classCompiler.enclosing = currentClass;
     currentClass = &classCompiler;
+    classCompiler.id = id;
 
-    // superclass
     if(match(TOKEN_LESS)) {
         consume(TOKEN_IDENTIFIER, "Expect superclass name.");
 
@@ -954,7 +982,6 @@ static void statement() {
         expressionStatement();
     }
 }
-
 
 ObjFunction* compile(const char* source) {
     initScanner(source);

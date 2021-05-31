@@ -1,0 +1,16 @@
+class A {
+  method(a, b) {
+    print "A.method " + a + " " + b;
+    inner(b, a);
+  }
+}
+
+class B < A {
+  method(a, b) {
+    print "B.method " + a + " " + b;
+  }
+}
+
+B().method("first", "second");
+// expect: A.method first second
+// expect: B.method second first

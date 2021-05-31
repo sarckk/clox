@@ -63,6 +63,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 
     uint8_t instruction = chunk->code[offset];
     switch(instruction) {
+        case OP_INNER: 
+            return invokeInstruction("OP_INNER", chunk, offset);
         case OP_SUPER_INVOKE: 
             return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
         case OP_GET_SUPER:
@@ -77,8 +79,14 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             return constantInstruction("OP_SET_PROPERTY", chunk, offset);
         case OP_GET_PROPERTY: 
             return constantInstruction("OP_GET_PROPERTY", chunk, offset);
-        case OP_CLASS:
-            return constantInstruction("OP_CLASS", chunk, offset);
+        case OP_CLASS: {
+            offset++;
+            uint16_t constant = chunk->code[offset++];
+            printf("%-16s %4d", "OP_CLASS", constant);
+            printValue(chunk->constants.values[constant]); 
+            printf("\n");
+            return offset+2;
+        }
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_CLOSURE:

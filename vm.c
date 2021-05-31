@@ -74,6 +74,7 @@ static void defineNative(const char* name, NativeFn function) {
 
 void initVM(){
     resetStack();
+    vm.nextClassID = 0;
     vm.objectCount = 0;
     vm.objects = NULL;
 
@@ -234,6 +235,20 @@ static ObjUpvalue* captureUpvalue(Value* local) {
 
 static void defineMethod(ObjString* name) {
     ObjClass* klass = AS_CLASS(peek(1));
+    AS_CLOSURE(peek(0))->classID = klass->id;
+
+    char* originalName = name->chars;
+    char newName[256];
+    Value inheritedMethod;
+    while(tableGet(&klass->methods, name, &inheritedMethod)) {
+        // rename this current method
+        ObjClosure* inheritedMethodClosure = AS_CLOSURE(inheritedMethod);
+        int classID = inheritedMethodClosure->classID;
+
+        sprintf(newName, "%s@%x", originalName, classID);
+        name = copyString(newName, (int)strlen(newName));
+    } 
+
     tableSet(&klass->methods, name, peek(0));
     pop();
 }
@@ -283,6 +298,20 @@ static bool invoke(ObjString* name, int argCount) {
     return invokeFromClass(instance->klass, name, argCount);
 }
 
+static bool invokeInner(ObjString* name, int argCount) {
+    Value receiver = peek(argCount);
+    ObjInstance* instance = AS_INSTANCE(receiver);
+
+    Value method;
+    if(!tableGet(&instance->klass->methods, name, &method)) {
+        vm.stackTop -= argCount + 1;
+        push(NIL_VAL);
+        return true;
+    }
+
+    return call(AS_CLOSURE(method), argCount);
+}
+
 static InterpretResult run() {
     CallFrame* frame = &vm.frames[vm.frameCount-1];
 #define READ_BYTE() (*frame->ip++)
@@ -319,6 +348,17 @@ static InterpretResult run() {
         uint8_t instruction;
 
         switch(instruction = READ_BYTE()) {
+            case OP_INNER: {
+                              ObjString* method = READ_STRING();
+                              int argCount = READ_BYTE();
+
+                              if(!invokeInner(method, argCount)){
+                                  return INTERPRET_RUNTIME_ERROR;
+                              }
+
+                              frame = &vm.frames[vm.frameCount - 1];
+                              break;
+                           }
             case OP_SUPER_INVOKE: {
                                       ObjClass* super = AS_CLASS(pop());
                                       ObjString* method = READ_STRING();
@@ -403,7 +443,7 @@ static InterpretResult run() {
                                       break;
                                   }
             case OP_CLASS: {
-                                ObjClass* klass = newClass(READ_STRING());
+                                ObjClass* klass = newClass(READ_STRING(), READ_SHORT());
                                 Value val = OBJ_VAL(klass);
                                 push(val);
                                 break;

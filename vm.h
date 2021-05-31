@@ -15,6 +15,7 @@ typedef struct {
 } CallFrame;
 
 typedef struct{
+    uint16_t nextClassID;
     ObjString* initString;
 
     // adapative GC scheduling

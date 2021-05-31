@@ -42,11 +42,11 @@ struct Obj {
     struct Obj* next;
 };
 
-
 typedef struct {
     Obj obj;
     ObjString* name;
     Table methods;
+    uint16_t id;
 } ObjClass;
  
 typedef struct {
@@ -75,6 +75,7 @@ typedef struct {
     ObjFunction* function;
     ObjUpvalue** upvalues;
     int upvalueCount;
+    uint16_t classID;
 } ObjClosure;
 
 typedef struct {
@@ -99,7 +100,7 @@ struct ObjString{
 
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 ObjInstance* newInstance(ObjClass* klass);
-ObjClass* newClass(ObjString* name);
+ObjClass* newClass(ObjString* name, uint16_t id);
 ObjFunction* newFunction();
 ObjUpvalue* newUpvalue(Value* value);
 ObjClosure* newClosure(ObjFunction* function);

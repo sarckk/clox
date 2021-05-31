@@ -1,0 +1,41 @@
+class A {
+    foo() {
+        inner();
+    }
+}
+
+class B < A {
+    foo() {
+        // does something
+    }
+}
+
+class A { // ID 0.
+  foo() {
+    this.foo@0();
+  }
+}
+
+class B < A { // ID 1.
+    foo() {
+        this.foo@0();
+    }
+
+    foo@0() {
+        this.foo@1();
+    }
+}
+
+class C < B { // ID 2.
+    foo() {
+        this.foo@0();
+    } 
+
+    foo@0() {
+        this.foo@1();
+    }
+
+    foo@1() {
+        // do smth
+    }
+}

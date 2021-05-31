@@ -37,9 +37,10 @@ ObjInstance* newInstance(ObjClass* klass) {
     return instance;
 }
 
-ObjClass* newClass(ObjString* name) {
+ObjClass* newClass(ObjString* name, uint16_t id) {
     ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
     klass->name = name;
+    klass->id = id;
     initTable(&klass->methods);
     return klass;
 }
@@ -70,6 +71,7 @@ ObjClosure* newClosure(ObjFunction* function) {
     ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
     closure->function = function;
     closure->upvalues = upvalues;
+    closure->classID = 0xffff;
     closure->upvalueCount = function->upvalueCount;
     return closure;
 }
