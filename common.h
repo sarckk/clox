@@ -9,6 +9,8 @@
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION
 
+#define NAN_BOXING
+
 /* #define DEBUG_GC_LOG */
 #define DEBUG_STRESS_GC
 
